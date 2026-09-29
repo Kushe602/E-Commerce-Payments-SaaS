@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}{{ code }} · {{ app_name }}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-md text-center py-16">
+  <p class="text-6xl font-black text-indigo-600">{{ code }}</p>
+  <p class="mt-4 text-lg text-slate-600">{{ message }}</p>
+  <a href="/" class="mt-6 inline-block rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700">Back to the store</a>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+# Render Blueprint — one-click deploy of the Cartify demo.
+# Docker runtime; Render injects $PORT (honoured by the Dockerfile CMD) and
+# provides TLS, so the session cookie is marked Secure. Payments are pinned to
+# the deterministic fake provider so the public demo needs zero secrets.
+services:
+  - type: web
+    name: cartify
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FORCE_FAKE_PAYMENTS
+        value: "true"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: AUTO_SEED
+        value: "true"

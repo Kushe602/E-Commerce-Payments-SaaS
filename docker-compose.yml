@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cartify
+      POSTGRES_PASSWORD: cartify
+      POSTGRES_DB: cartify
+    volumes:
+      - cartify_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cartify -d cartify"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Async Postgres driver (asyncpg) for the app; compose overrides the SQLite default.
+      DATABASE_URL: postgresql+asyncpg://cartify:cartify@db:5432/cartify
+      SECRET_KEY: dev-compose-secret-change-me
+      # No Stripe keys in the demo stack — pin the deterministic fake provider.
+      FORCE_FAKE_PAYMENTS: "true"
+      AUTO_SEED: "true"
+      COOKIE_SECURE: "false"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  cartify_pgdata:

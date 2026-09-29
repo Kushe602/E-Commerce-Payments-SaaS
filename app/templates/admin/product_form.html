@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if product else 'New' }} product · Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <div class="mb-4"><a href="/admin/products" class="text-sm text-indigo-600 hover:underline">← Products</a></div>
+  <h1 class="mb-6 text-2xl font-bold">{{ 'Edit product' if product else 'New product' }}</h1>
+
+  {% if error %}
+  <div class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800">{{ error }}</div>
+  {% endif %}
+
+  <form action="{{ '/admin/products/' ~ product.id if product else '/admin/products' }}" method="post"
+        class="space-y-5 rounded-2xl border border-slate-200 bg-white p-6">
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Name</label>
+      <input name="name" required value="{{ product.name if product else '' }}"
+             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Price (USD)</label>
+        <input name="price" required inputmode="decimal" placeholder="19.99"
+               value="{{ '%d.%02d'|format(product.price_cents // 100, product.price_cents % 100) if product else '' }}"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Stock</label>
+        <input name="stock" type="number" min="0" value="{{ product.stock if product else 0 }}"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Category</label>
+      <select name="category_id"
+              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+        <option value="">— None —</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {{ 'selected' if product and product.category_id == c.id else '' }}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Description</label>
+      <textarea name="description" rows="4"
+                class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">{{ product.description if product else '' }}</textarea>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Image URL</label>
+      <input name="image_url" value="{{ product.image_url or '' if product else '' }}"
+             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Slug <span class="text-slate-400">(optional — generated from name)</span></label>
+      <input name="slug" value="{{ product.slug if product else '' }}"
+             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+    </div>
+
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" name="is_active" value="true" {{ 'checked' if (product.is_active if product else true) else '' }}
+             class="h-4 w-4 rounded border-slate-300 text-indigo-600">
+      Active (visible in the store)
+    </label>
+
+    <div class="flex gap-3 pt-2">
+      <button class="rounded-lg bg-indigo-600 px-5 py-2 font-semibold text-white hover:bg-indigo-700">
+        {{ 'Save changes' if product else 'Create product' }}
+      </button>
+      <a href="/admin/products" class="rounded-lg border border-slate-300 px-5 py-2 font-medium hover:border-slate-400">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

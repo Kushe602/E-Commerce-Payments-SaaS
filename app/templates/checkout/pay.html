@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Complete payment · {{ app_name }}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-lg">
+  <div class="mb-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800">
+    <strong>Simulated payment gateway.</strong> No card, no keys, no network — this stands in for
+    Stripe Checkout so the demo works anywhere. Choose an outcome below.
+  </div>
+  <div class="rounded-2xl border border-slate-200 bg-white p-6">
+    <h1 class="text-xl font-bold">Order #{{ order.id }}</h1>
+    <ul class="mt-4 divide-y divide-slate-100 text-sm">
+      {% for item in items %}
+      <li class="flex justify-between py-2">
+        <span>{{ item.product_name }} × {{ item.quantity }}</span>
+        <span class="font-medium">{{ (item.unit_price_cents * item.quantity) | money }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="mt-4 flex justify-between border-t border-slate-200 pt-4 text-lg font-black">
+      <span>Total</span><span>{{ order.total_cents | money }}</span>
+    </div>
+
+    <form action="/checkout/pay/{{ order.id }}" method="post" class="mt-6 space-y-3">
+      <button name="outcome" value="success"
+              class="w-full rounded-lg bg-emerald-600 px-4 py-2.5 font-semibold text-white hover:bg-emerald-700">
+        Pay {{ order.total_cents | money }} (success)
+      </button>
+      <button name="outcome" value="fail"
+              class="w-full rounded-lg border border-rose-300 px-4 py-2.5 font-medium text-rose-600 hover:bg-rose-50">
+        Simulate a failed payment
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+# Keep the build context small and deterministic.
+.git
+.github
+.venv
+venv
+env
+
+__pycache__
+*.py[cod]
+*.egg-info
+
+# Local databases and secrets never belong in the image.
+*.db
+*.sqlite3
+.env
+
+# Dev-only artifacts
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+tests
+
+docker-compose.yml
+.dockerignore
+.gitignore

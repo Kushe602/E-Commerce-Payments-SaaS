@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <meta name="description" content="{{ app_name }} — a demo e-commerce store with a pluggable payments layer.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+</head>
+<body class="min-h-full bg-slate-50 text-slate-900 flex flex-col antialiased">
+  <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-20">
+    <nav class="max-w-6xl mx-auto flex items-center gap-4 px-4 py-3">
+      <a href="/" class="text-xl font-bold text-indigo-600 tracking-tight">🛒 {{ app_name }}</a>
+
+      <form action="/" method="get" class="hidden md:flex flex-1 max-w-md">
+        <input type="search" name="q" value="{{ q|default('') }}" placeholder="Search products…"
+               class="w-full rounded-l-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button class="rounded-r-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">Search</button>
+      </form>
+
+      <div class="flex-1 md:hidden"></div>
+
+      <div class="flex items-center gap-3 text-sm">
+        <span class="hidden sm:inline rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500"
+              title="Payment provider in use">{{ 'Stripe test' if payments_mode == 'stripe' else 'Fake payments' }}</span>
+        {% if user %}
+          {% include 'partials/cart_badge.html' %}
+          <a href="/orders" class="text-slate-600 hover:text-indigo-600">Orders</a>
+          {% if user.is_admin %}<a href="/admin" class="text-slate-600 hover:text-indigo-600">Admin</a>{% endif %}
+          <form action="/logout" method="post" class="inline">
+            <button class="text-slate-600 hover:text-indigo-600">Log out</button>
+          </form>
+        {% else %}
+          {% include 'partials/cart_badge.html' %}
+          <a href="/login" class="text-slate-600 hover:text-indigo-600">Log in</a>
+          <a href="/register" class="rounded-lg bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700">Sign up</a>
+        {% endif %}
+      </div>
+    </nav>
+  </header>
+
+  <main class="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+    {{ app_name }} · a portfolio demo · payments run in
+    <strong>{{ 'Stripe test mode' if payments_mode == 'stripe' else 'fake mode (no keys)' }}</strong>
+  </footer>
+</body>
+</html>
