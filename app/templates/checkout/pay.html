@@ -16,8 +16,19 @@
       </li>
       {% endfor %}
     </ul>
-    <div class="mt-4 flex justify-between border-t border-slate-200 pt-4 text-lg font-black">
-      <span>Total</span><span>{{ order.total_cents | money }}</span>
+    <div class="mt-4 space-y-1 border-t border-slate-200 pt-4">
+      {% if order.discount_cents %}
+      <div class="flex justify-between text-sm text-slate-500">
+        <span>Subtotal</span><span>{{ (order.total_cents + order.discount_cents) | money }}</span>
+      </div>
+      <div class="flex justify-between text-sm text-emerald-600">
+        <span>Discount{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</span>
+        <span>-{{ order.discount_cents | money }}</span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between text-lg font-black">
+        <span>Total</span><span>{{ order.total_cents | money }}</span>
+      </div>
     </div>
 
     <form action="/checkout/pay/{{ order.id }}" method="post" class="mt-6 space-y-3">

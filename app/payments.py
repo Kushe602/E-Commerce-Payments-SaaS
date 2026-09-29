@@ -40,6 +40,13 @@ class WebhookEvent:
     reference: str | None
 
 
+@dataclass
+class RefundResult:
+    """The provider reference for a completed refund (persisted on the order)."""
+
+    reference: str
+
+
 class WebhookVerificationError(Exception):
     """Raised when a webhook payload fails signature verification."""
 
@@ -77,6 +84,10 @@ class FakePaymentProvider:
             order_id=int(order_id) if order_id is not None else None,
             reference=obj.get("id"),
         )
+
+    async def refund(self, order: Order) -> RefundResult:
+        """Acknowledge a refund without any network/keys (deterministic for CI)."""
+        return RefundResult(reference=f"fake_refund_{order.id}")
 
 
 # --- Stripe provider ---------------------------------------------------------
@@ -137,6 +148,14 @@ class StripePaymentProvider:
             order_id=int(order_id) if order_id is not None else None,
             reference=obj.get("id"),
         )
+
+    async def refund(self, order: Order) -> RefundResult:
+        """Issue a real Stripe refund for the order's Checkout Session payment."""
+        stripe = self._client()
+        # Our payment_ref is the Checkout Session id; resolve its PaymentIntent.
+        session = stripe.checkout.Session.retrieve(order.payment_ref)
+        refund = stripe.Refund.create(payment_intent=session["payment_intent"])
+        return RefundResult(reference=refund.id)
 
 
 def get_payment_provider() -> FakePaymentProvider | StripePaymentProvider:

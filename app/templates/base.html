@@ -26,6 +26,7 @@
               title="Payment provider in use">{{ 'Stripe test' if payments_mode == 'stripe' else 'Fake payments' }}</span>
         {% if user %}
           {% include 'partials/cart_badge.html' %}
+          <a href="/wishlist" class="text-slate-600 hover:text-indigo-600">Wishlist</a>
           <a href="/orders" class="text-slate-600 hover:text-indigo-600">Orders</a>
           {% if user.is_admin %}<a href="/admin" class="text-slate-600 hover:text-indigo-600">Admin</a>{% endif %}
           <form action="/logout" method="post" class="inline">

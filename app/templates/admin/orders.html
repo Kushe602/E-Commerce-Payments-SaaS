@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Orders · Admin{% endblock %}
-{% set pill = {'paid': 'bg-emerald-100 text-emerald-700', 'pending': 'bg-amber-100 text-amber-700', 'failed': 'bg-rose-100 text-rose-700'} %}
+{% set pill = {'paid': 'bg-emerald-100 text-emerald-700', 'pending': 'bg-amber-100 text-amber-700', 'failed': 'bg-rose-100 text-rose-700', 'shipped': 'bg-sky-100 text-sky-700', 'delivered': 'bg-teal-100 text-teal-700', 'refunded': 'bg-slate-200 text-slate-600'} %}
 {% block content %}
 <div class="mb-6 flex items-center justify-between">
   <h1 class="text-2xl font-bold">Orders</h1>
@@ -23,13 +23,34 @@
         <td class="px-4 py-3 text-slate-500">{{ o.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
         <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ pill.get(o.status, 'bg-slate-100 text-slate-600') }}">{{ o.status|capitalize }}</span></td>
         <td class="px-4 py-3 text-right font-semibold">{{ o.total_cents | money }}</td>
-        <td class="px-4 py-3 text-right">
+        <td class="px-4 py-3 text-right whitespace-nowrap">
           {% if o.status == 'pending' %}
           <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline">
             <button name="action" value="fulfill" class="text-emerald-600 hover:underline">Fulfil</button>
           </form>
           <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline">
             <button name="action" value="fail" class="ml-3 text-rose-500 hover:underline">Fail</button>
+          </form>
+          {% elif o.status == 'paid' %}
+          <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline">
+            <button name="action" value="ship" class="text-sky-600 hover:underline">Ship</button>
+          </form>
+          <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline"
+                onsubmit="return confirm('Refund order #{{ o.id }}? This restocks the items.');">
+            <button name="action" value="refund" class="ml-3 text-slate-500 hover:underline">Refund</button>
+          </form>
+          {% elif o.status == 'shipped' %}
+          <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline">
+            <button name="action" value="deliver" class="text-teal-600 hover:underline">Deliver</button>
+          </form>
+          <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline"
+                onsubmit="return confirm('Refund order #{{ o.id }}? This restocks the items.');">
+            <button name="action" value="refund" class="ml-3 text-slate-500 hover:underline">Refund</button>
+          </form>
+          {% elif o.status == 'delivered' %}
+          <form action="/admin/orders/{{ o.id }}/status" method="post" class="inline"
+                onsubmit="return confirm('Refund order #{{ o.id }}? This restocks the items.');">
+            <button name="action" value="refund" class="text-slate-500 hover:underline">Refund</button>
           </form>
           {% else %}
           <span class="text-slate-400">—</span>

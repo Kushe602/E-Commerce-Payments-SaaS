@@ -28,12 +28,20 @@ def _is_htmx(request: Request) -> bool:
 @router.get("/cart", response_class=HTMLResponse)
 async def cart_page(
     request: Request,
+    coupon_error: int | None = None,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     view = await get_cart_view(db, user)
     return templates.TemplateResponse(
-        request, "cart.html", {"view": view, "user": user, "cart_count": view.count}
+        request,
+        "cart.html",
+        {
+            "view": view,
+            "user": user,
+            "cart_count": view.count,
+            "coupon_error": bool(coupon_error),
+        },
     )
 
 

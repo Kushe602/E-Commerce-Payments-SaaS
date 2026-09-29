@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Coupons · Admin{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-bold">Coupons</h1>
+  <div class="flex gap-2 text-sm">
+    <a href="/admin" class="rounded-lg border border-slate-300 px-3 py-1.5 hover:border-indigo-400">← Dashboard</a>
+    <a href="/admin/coupons/new" class="rounded-lg bg-indigo-600 px-4 py-1.5 font-semibold text-white hover:bg-indigo-700">+ New coupon</a>
+  </div>
+</div>
+<div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+      <tr>
+        <th class="px-4 py-3">Code</th><th class="px-4 py-3">Discount</th>
+        <th class="px-4 py-3">Expires</th><th class="px-4 py-3">Uses</th>
+        <th class="px-4 py-3">Active</th><th class="px-4 py-3 text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+    {% for c in coupons %}
+      <tr>
+        <td class="px-4 py-3 font-mono font-medium">{{ c.code }}</td>
+        <td class="px-4 py-3">{{ (c.value ~ '% off') if c.kind == 'percent' else (c.value | money ~ ' off') }}</td>
+        <td class="px-4 py-3 text-slate-500">{{ c.expires_at.strftime('%Y-%m-%d') if c.expires_at else '—' }}</td>
+        <td class="px-4 py-3 text-slate-500">{{ c.used_count }}{% if c.max_uses %} / {{ c.max_uses }}{% endif %}</td>
+        <td class="px-4 py-3">
+          <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ 'bg-emerald-100 text-emerald-700' if c.is_active else 'bg-slate-100 text-slate-500' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <form action="/admin/coupons/{{ c.id }}/toggle" method="post" class="inline">
+            <button class="text-indigo-600 hover:underline">{{ 'Deactivate' if c.is_active else 'Activate' }}</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No coupons yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

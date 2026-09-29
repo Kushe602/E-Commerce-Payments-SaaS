@@ -16,6 +16,31 @@
   {% endfor %}
 </div>
 
+<form method="get" action="/" class="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
+  {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+  {% if active_category %}<input type="hidden" name="category" value="{{ active_category }}">{% endif %}
+  <label class="flex flex-col text-xs font-medium text-slate-500">Sort by
+    <select name="sort" class="mt-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none">
+      <option value="name" {{ 'selected' if sort == 'name' else '' }}>Name (A–Z)</option>
+      <option value="newest" {{ 'selected' if sort == 'newest' else '' }}>Newest</option>
+      <option value="price_asc" {{ 'selected' if sort == 'price_asc' else '' }}>Price: low to high</option>
+      <option value="price_desc" {{ 'selected' if sort == 'price_desc' else '' }}>Price: high to low</option>
+    </select>
+  </label>
+  <label class="flex flex-col text-xs font-medium text-slate-500">Min price ($)
+    <input type="text" name="min_price" inputmode="decimal" value="{{ min_price }}" placeholder="0"
+           class="mt-1 w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none">
+  </label>
+  <label class="flex flex-col text-xs font-medium text-slate-500">Max price ($)
+    <input type="text" name="max_price" inputmode="decimal" value="{{ max_price }}" placeholder="Any"
+           class="mt-1 w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none">
+  </label>
+  <button class="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">Apply</button>
+  {% if sort != 'name' or min_price or max_price %}
+    <a href="/{{ '?category=' ~ active_category if active_category else '' }}" class="text-sm text-slate-500 hover:text-indigo-600">Reset</a>
+  {% endif %}
+</form>
+
 {% if q %}<p class="mb-4 text-sm text-slate-500">Results for “{{ q }}”</p>{% endif %}
 
 {% if products %}

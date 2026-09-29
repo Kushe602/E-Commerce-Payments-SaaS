@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Your orders · {{ app_name }}{% endblock %}
-{% set pill = {'paid': 'bg-emerald-100 text-emerald-700', 'pending': 'bg-amber-100 text-amber-700', 'failed': 'bg-rose-100 text-rose-700'} %}
+{% set pill = {'paid': 'bg-emerald-100 text-emerald-700', 'pending': 'bg-amber-100 text-amber-700', 'failed': 'bg-rose-100 text-rose-700', 'shipped': 'bg-sky-100 text-sky-700', 'delivered': 'bg-teal-100 text-teal-700', 'refunded': 'bg-slate-200 text-slate-600'} %}
 {% block content %}
 <h1 class="mb-6 text-2xl font-bold">Your orders</h1>
 {% if orders %}

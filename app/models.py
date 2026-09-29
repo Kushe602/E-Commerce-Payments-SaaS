@@ -18,13 +18,32 @@ from app.database import Base
 
 
 class OrderStatus:
-    """Allowed order states (plain string constants → portable across SQLite/PG)."""
+    """Allowed order states (plain string constants → portable across SQLite/PG).
+
+    The fulfilment lifecycle runs ``paid → shipped → delivered``; ``refunded`` is a
+    terminal state reachable from any fulfilled state (it restocks the order).
+    """
 
     PENDING = "pending"
     PAID = "paid"
     FAILED = "failed"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    REFUNDED = "refunded"
 
-    ALL = ("pending", "paid", "failed")
+    ALL = ("pending", "paid", "failed", "shipped", "delivered", "refunded")
+    # States that count as a completed purchase (stock has been decremented and
+    # the money captured) — used to gate reviews and to allow refunds.
+    FULFILLED = ("paid", "shipped", "delivered")
+
+
+class CouponKind:
+    """Discount kinds. ``value`` is whole percent (1–100) or integer cents off."""
+
+    PERCENT = "percent"
+    FIXED = "fixed"
+
+    ALL = ("percent", "fixed")
 
 
 def _now() -> datetime:
@@ -92,10 +111,16 @@ class Order(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(20), default=OrderStatus.PENDING, index=True)
     total_cents: Mapped[int] = mapped_column(Integer, default=0)
+    # Coupon snapshot: the discount applied (integer cents) and the code used, so
+    # a later edit/deletion of the coupon never rewrites what the customer paid.
+    discount_cents: Mapped[int] = mapped_column(Integer, default=0)
+    coupon_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # "fake" or "stripe" — which provider handled this order.
     payment_provider: Mapped[str] = mapped_column(String(20), default="fake")
     # Provider reference (Stripe Checkout Session id, or a fake session id).
     payment_ref: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    # Provider refund reference, set when the order is refunded.
+    refund_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_now, index=True)
     updated_at: Mapped[datetime] = mapped_column(default=_now, onupdate=_now)
 
@@ -119,3 +144,58 @@ class OrderItem(Base):
     product_name: Mapped[str] = mapped_column(String(200))
     unit_price_cents: Mapped[int] = mapped_column(Integer)
     quantity: Mapped[int] = mapped_column(Integer)
+
+
+class Review(Base):
+    """A product rating (1–5) + text, one per (product, user).
+
+    Only users who purchased the product may leave one (enforced in the service
+    layer); the unique constraint lets a shopper edit their single review.
+    """
+
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("product_id", "user_id", name="uq_review_product_user"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    rating: Mapped[int] = mapped_column(Integer)  # constrained to 1..5 in services
+    body: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(default=_now, index=True)
+
+
+class Coupon(Base):
+    """A discount code: percentage or fixed cents off, with optional expiry + cap.
+
+    ``expires_at`` is stored as a naive UTC datetime so comparisons never trip the
+    aware/naive mismatch SQLite reads back (all timestamps here are UTC).
+    """
+
+    __tablename__ = "coupons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # CouponKind.PERCENT / .FIXED
+    # Whole percent (1..100) for PERCENT, or integer cents off for FIXED.
+    value: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    used_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(default=_now)
+
+
+class WishlistItem(Base):
+    """A saved product for a user. Unique per (user, product)."""
+
+    __tablename__ = "wishlist_items"
+    __table_args__ = (
+        UniqueConstraint("user_id", "product_id", name="uq_wishlist_user_product"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(default=_now)

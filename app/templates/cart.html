@@ -2,5 +2,8 @@
 {% block title %}Your cart · {{ app_name }}{% endblock %}
 {% block content %}
 <h1 class="mb-6 text-2xl font-bold">Your cart</h1>
+{% if coupon_error %}
+<div class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800">That coupon code isn't valid — it may be expired, used up, or misspelled. Your order was not placed.</div>
+{% endif %}
 {% include 'partials/cart_body.html' %}
 {% endblock %}

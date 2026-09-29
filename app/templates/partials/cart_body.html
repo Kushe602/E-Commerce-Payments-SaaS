@@ -44,7 +44,12 @@
       <p class="text-sm text-slate-500">Subtotal ({{ view.count }} item{{ '' if view.count == 1 else 's' }})</p>
       <p class="text-2xl font-black">{{ view.total_cents | money }}</p>
     </div>
-    <form action="/checkout" method="post">
+    <form action="/checkout" method="post" class="flex flex-col items-end gap-2">
+      <label class="flex items-center gap-2 text-sm text-slate-600">
+        <span>Coupon</span>
+        <input type="text" name="coupon_code" placeholder="Code"
+               class="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm uppercase focus:border-indigo-500 focus:outline-none">
+      </label>
       <button class="rounded-lg bg-indigo-600 px-6 py-2.5 font-semibold text-white hover:bg-indigo-700">
         Checkout
       </button>

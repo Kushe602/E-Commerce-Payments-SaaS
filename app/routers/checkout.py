@@ -18,8 +18,10 @@ from app.models import Order, User
 from app.payments import get_payment_provider
 from app.services import (
     EmptyCartError,
+    apply_coupon_to_order,
     create_order_from_cart,
     fail_order,
+    find_valid_coupon,
     fulfill_order,
     get_order_items,
     nav_context,
@@ -43,14 +45,27 @@ async def _load_owned_order(db: AsyncSession, order_id: int, user: User) -> Orde
 @router.post("/checkout")
 async def checkout(
     request: Request,
+    coupon_code: str = Form(""),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     provider = get_payment_provider()
+
+    # Validate any coupon *before* creating the order, so a bad code creates
+    # nothing and just bounces the shopper back to the cart with a message.
+    coupon = None
+    if coupon_code.strip():
+        coupon = await find_valid_coupon(db, coupon_code)
+        if coupon is None:
+            return RedirectResponse("/cart?coupon_error=1", status_code=303)
+
     try:
         order = await create_order_from_cart(db, user, provider.mode)
     except EmptyCartError:
         return RedirectResponse("/cart", status_code=303)
+
+    if coupon is not None:
+        await apply_coupon_to_order(db, order, coupon)
 
     items = await get_order_items(db, order.id)
     base = _base_url(request)

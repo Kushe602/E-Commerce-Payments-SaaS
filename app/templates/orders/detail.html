@@ -1,12 +1,18 @@
 {% extends 'base.html' %}
 {% block title %}Order #{{ order.id }} · {{ app_name }}{% endblock %}
-{% set pill = {'paid': 'bg-emerald-100 text-emerald-700', 'pending': 'bg-amber-100 text-amber-700', 'failed': 'bg-rose-100 text-rose-700'} %}
+{% set pill = {'paid': 'bg-emerald-100 text-emerald-700', 'pending': 'bg-amber-100 text-amber-700', 'failed': 'bg-rose-100 text-rose-700', 'shipped': 'bg-sky-100 text-sky-700', 'delivered': 'bg-teal-100 text-teal-700', 'refunded': 'bg-slate-200 text-slate-600'} %}
 {% block content %}
 <div class="mx-auto max-w-2xl">
   <div class="mb-4"><a href="/orders" class="text-sm text-indigo-600 hover:underline">← All orders</a></div>
 
-  {% if order.status == 'paid' %}
-    <div class="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Payment received — thank you! Your order is confirmed.</div>
+  {% if order.status in ['paid', 'shipped', 'delivered'] %}
+    <div class="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+      {% if order.status == 'paid' %}Payment received — thank you! Your order is confirmed.
+      {% elif order.status == 'shipped' %}Good news — your order has shipped and is on its way.
+      {% else %}Delivered. Thanks for shopping with us!{% endif %}
+    </div>
+  {% elif order.status == 'refunded' %}
+    <div class="mb-4 rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700">This order was refunded{% if order.refund_ref %} (ref <code>{{ order.refund_ref }}</code>){% endif %} and the items were returned to stock.</div>
   {% elif order.status == 'failed' %}
     <div class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800">This payment did not go through. Nothing was charged and no stock was reserved.</div>
   {% elif canceled %}
@@ -35,8 +41,19 @@
       </tbody>
     </table>
 
-    <div class="mt-4 flex justify-between border-t border-slate-200 pt-4 text-lg font-black">
-      <span>Total</span><span>{{ order.total_cents | money }}</span>
+    <div class="mt-4 space-y-1 border-t border-slate-200 pt-4">
+      {% if order.discount_cents %}
+      <div class="flex justify-between text-sm text-slate-500">
+        <span>Subtotal</span><span>{{ (order.total_cents + order.discount_cents) | money }}</span>
+      </div>
+      <div class="flex justify-between text-sm text-emerald-600">
+        <span>Discount{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</span>
+        <span>-{{ order.discount_cents | money }}</span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between text-lg font-black">
+        <span>Total</span><span>{{ order.total_cents | money }}</span>
+      </div>
     </div>
     <p class="mt-3 text-xs text-slate-400">
       Paid via {{ order.payment_provider }}{% if order.payment_ref %} · ref <code>{{ order.payment_ref }}</code>{% endif %}

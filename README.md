@@ -37,14 +37,29 @@ suite passes with nothing configured.
 - **Auth** — register / login / logout with bcrypt password hashing and a
   stateless JWT session in an httponly, SameSite cookie.
 - **Catalog** — products (name, slug, description, price in cents, image, stock),
-  categories, search, and category filtering.
+  categories, search, category filtering, plus **sort** (name / newest / price)
+  and a **price-range filter**.
 - **Cart** — per-user, add / update / remove with live totals and an
   out-of-band nav badge via HTMX; quantities clamped to available stock.
+- **Coupons** — admin-created discount codes, **percentage or fixed-cents off**,
+  with optional expiry and usage cap; applied at checkout, validated before the
+  order is created, clamped so a total never goes negative, and recorded on the
+  order (all in integer cents).
 - **Checkout + payments** — atomic order creation, provider hand-off, and
   fulfilment (mark paid + decrement stock) with an oversell guard.
-- **Orders** — history list and detailed receipts with status (pending / paid /
-  failed); receipts survive later catalog edits and deletions via snapshots.
-- **Admin** — product CRUD and order management, gated by an `is_admin` check.
+- **Orders** — history list and detailed receipts with a full lifecycle status
+  (pending / paid / failed / shipped / delivered / refunded); receipts survive
+  later catalog edits and deletions via snapshots.
+- **Fulfilment + refunds** — admin advances paid orders through
+  **paid → shipped → delivered**; a refund **restocks every line and marks the
+  order refunded, idempotently** (fake provider records a ref; the Stripe path
+  issues a real refund).
+- **Reviews + ratings** — shoppers who **purchased** a product leave a 1–5 star
+  rating and text; the product page shows the average and the review list.
+- **Wishlist** — signed-in shoppers save / remove products, view a wishlist
+  page, and add to cart from it; saves are idempotent.
+- **Admin** — product CRUD, coupon management, and the order fulfilment /
+  refund lifecycle, gated by an `is_admin` check.
 
 ## Tech stack
 
@@ -109,6 +124,9 @@ Seeded by `python -m app.seed` (and on startup when `AUTO_SEED=true`):
 | Admin | `admin@cartify.dev` | `admin12345` |
 | User  | `demo@cartify.dev`  | `demo12345`  |
 
+Two demo coupons are seeded too, so the checkout coupon field works out of the
+box: `WELCOME10` (10% off) and `SAVE5` ($5.00 off).
+
 ## Real Stripe test mode (optional)
 
 Set test keys and leave `FORCE_FAKE_PAYMENTS` off:
@@ -148,7 +166,10 @@ pytest -q
 The suite (Starlette `TestClient` over the async app, isolated SQLite schema per
 test) covers auth, cart math, the fake-payment success **and** failure paths,
 stock decrement, the oversell guard, webhook fulfilment (including idempotency),
-and admin authorization (anonymous redirect + non-admin `403`).
+admin authorization (anonymous redirect + non-admin `403`), coupon math and
+validation (percentage / fixed / clamping / expiry / usage cap), purchase-gated
+reviews, the wishlist (including open-redirect-safe `next`), the fulfilment
+lifecycle with idempotent refund + restock, and catalog sort / price filtering.
 
 ## Deployment (Render)
 
@@ -164,12 +185,12 @@ app/
   main.py          # app factory, lifespan (schema + seed), error handlers
   config.py        # pydantic-settings; payments_mode property
   database.py      # async engine, session factory, Base
-  models.py        # User, Category, Product, Cart(+Item), Order(+Item)
+  models.py        # User, Category, Product, Cart(+Item), Order(+Item), Coupon, Review, WishlistItem
   security.py      # bcrypt hashing + JWT session tokens
   dependencies.py  # current-user / admin guards
   payments.py      # Fake + Stripe providers behind one interface
-  services.py      # cart & order logic, fulfilment + oversell guard
-  routers/         # auth, catalog, cart, checkout, orders, admin, webhooks
+  services.py      # cart & order logic, fulfilment + oversell guard, coupons, reviews, wishlist
+  routers/         # auth, catalog, cart, checkout, orders, wishlist, admin, webhooks
   templates/       # Jinja2 (server-rendered) + HTMX partials
   seed.py          # idempotent demo data
 tests/             # pytest suite (fake-payments mode, no secrets)
@@ -184,6 +205,15 @@ tests/             # pytest suite (fake-payments mode, no secrets)
   fake path exists only for local dev and CI, and is unreachable in Stripe mode.)
 - **All mutating routes require authentication**; admin routes additionally
   require the `is_admin` role.
+- **Reviews are purchase-gated** — the server verifies the user has a fulfilled
+  order for the product (never trusting the client), enforces a 1–5 rating, and
+  keeps one review per user per product.
+- **Wishlist redirects are validated** — the `next` target must be a local
+  single-slash path, so it can't be abused as an open redirect.
+- **Coupons and refunds stay in integer cents** — discounts are computed with
+  integer math and clamped to `[0, subtotal]` (no negative totals), usage caps
+  and expiry are enforced server-side, and a refund restocks and marks the order
+  refunded **idempotently** so a repeated action never restocks twice.
 - **Passwords** are bcrypt-hashed; sessions are stateless JWTs in an httponly,
   SameSite=Lax cookie, with `Secure` enabled in production (`COOKIE_SECURE`).
 - **No raw SQL** — all access goes through the SQLAlchemy ORM; input is parsed

@@ -10,7 +10,7 @@ import asyncio
 from sqlalchemy import func, select
 
 from app.database import SessionLocal, init_db
-from app.models import Category, Product, User
+from app.models import Category, Coupon, CouponKind, Product, User
 from app.security import hash_password
 
 # Demo accounts (documented in the README). Passwords are >= 8 chars.
@@ -90,6 +90,10 @@ async def seed(db) -> bool:
                 is_admin=False,
             )
         )
+
+    # Demo coupons so the checkout coupon field has something to try out of the box.
+    db.add(Coupon(code="WELCOME10", kind=CouponKind.PERCENT, value=10, is_active=True))
+    db.add(Coupon(code="SAVE5", kind=CouponKind.FIXED, value=500, is_active=True))
 
     await db.commit()
     return True

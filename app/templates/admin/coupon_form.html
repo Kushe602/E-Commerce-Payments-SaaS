@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}New coupon · Admin{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl">
+  <div class="mb-4"><a href="/admin/coupons" class="text-sm text-indigo-600 hover:underline">← Coupons</a></div>
+  <h1 class="mb-6 text-2xl font-bold">New coupon</h1>
+
+  {% if error %}
+  <div class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-800">{{ error }}</div>
+  {% endif %}
+
+  <form action="/admin/coupons" method="post"
+        class="space-y-5 rounded-2xl border border-slate-200 bg-white p-6">
+    <div>
+      <label class="block text-sm font-medium text-slate-700">Code</label>
+      <input name="code" required placeholder="WELCOME10"
+             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 uppercase focus:border-indigo-500 focus:outline-none">
+      <p class="mt-1 text-xs text-slate-400">2–64 characters: letters, digits, and hyphens. Stored uppercase.</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Type</label>
+        <select name="kind"
+                class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+          <option value="percent">Percentage off</option>
+          <option value="fixed">Fixed amount off</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Value</label>
+        <input name="value" required inputmode="decimal" placeholder="10"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+        <p class="mt-1 text-xs text-slate-400">Whole percent (1–100), or a dollar amount for a fixed discount.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Expires <span class="text-slate-400">(optional)</span></label>
+        <input name="expires_at" type="date"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700">Usage cap <span class="text-slate-400">(optional)</span></label>
+        <input name="max_uses" type="number" min="1" placeholder="Unlimited"
+               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none">
+      </div>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button class="rounded-lg bg-indigo-600 px-5 py-2 font-semibold text-white hover:bg-indigo-700">Create coupon</button>
+      <a href="/admin/coupons" class="rounded-lg border border-slate-300 px-5 py-2 font-medium hover:border-slate-400">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

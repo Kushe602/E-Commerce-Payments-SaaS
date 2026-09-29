@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.database import init_db
 from app.dependencies import Forbidden, NotAuthenticated
-from app.routers import admin, auth, cart, catalog, checkout, orders, webhooks
+from app.routers import admin, auth, cart, catalog, checkout, orders, webhooks, wishlist
 from app.seed import maybe_seed
 from app.web import static_files, templates
 
@@ -34,6 +34,7 @@ app.include_router(checkout.router)
 app.include_router(orders.router)
 app.include_router(admin.router)
 app.include_router(webhooks.router)
+app.include_router(wishlist.router)
 
 
 @app.get("/healthz", include_in_schema=False)

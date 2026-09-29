@@ -1,8 +1,9 @@
-"""Admin area: product CRUD and order management. Every route requires an admin."""
+"""Admin area: product CRUD, coupon management, and order management. Every route
+requires an admin."""
 from __future__ import annotations
 
 import re
-from decimal import Decimal, InvalidOperation
+from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -11,8 +12,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import require_admin
-from app.models import CartItem, Category, Order, OrderItem, Product, User
-from app.services import fail_order, fulfill_order, nav_context
+from app.models import (
+    CartItem,
+    Category,
+    Coupon,
+    CouponKind,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Product,
+    User,
+)
+from app.payments import get_payment_provider
+from app.services import (
+    advance_order_status,
+    dollars_to_cents,
+    fail_order,
+    fulfill_order,
+    nav_context,
+    refund_order,
+)
 from app.web import templates
 
 router = APIRouter(prefix="/admin")
@@ -35,12 +54,8 @@ async def _unique_slug(db: AsyncSession, base: str, exclude_id: int | None = Non
 
 
 def _parse_price_cents(raw: str) -> int | None:
-    """Parse a dollar string into integer cents via Decimal (never float)."""
-    try:
-        value = Decimal(raw.strip()).quantize(Decimal("0.01"))
-    except (InvalidOperation, AttributeError):
-        return None
-    return int(value * 100) if value >= 0 else None
+    """Parse a dollar string into non-negative integer cents (never float)."""
+    return dollars_to_cents(raw)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -51,12 +66,17 @@ async def dashboard(
 ):
     product_count = await db.scalar(select(func.count()).select_from(Product))
     order_count = await db.scalar(select(func.count()).select_from(Order))
+    coupon_count = await db.scalar(select(func.count()).select_from(Coupon))
+    # Captured revenue = fulfilled orders (paid/shipped/delivered), net of refunds.
     revenue = await db.scalar(
-        select(func.coalesce(func.sum(Order.total_cents), 0)).where(Order.status == "paid")
+        select(func.coalesce(func.sum(Order.total_cents), 0)).where(
+            Order.status.in_(OrderStatus.FULFILLED)
+        )
     )
     ctx = {
         "product_count": product_count,
         "order_count": order_count,
+        "coupon_count": coupon_count,
         "revenue_cents": revenue,
         **await nav_context(db, admin),
     }
@@ -224,9 +244,137 @@ async def admin_order_status(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """Manually fulfil (pay + decrement stock) or fail a pending order."""
+    """Drive an order: fulfil/fail a pending one, advance its lifecycle, or refund it.
+
+    ``fulfill``/``fail`` act on pending orders; ``ship``/``deliver`` move a paid
+    order along its lifecycle; ``refund`` restocks a fulfilled order and marks it
+    refunded (idempotently) via the active payment provider.
+    """
     if action == "fulfill":
         await fulfill_order(db, order_id)
     elif action == "fail":
         await fail_order(db, order_id)
+    elif action in ("ship", "deliver"):
+        await advance_order_status(db, order_id, action)
+    elif action == "refund":
+        await refund_order(db, order_id, get_payment_provider())
     return RedirectResponse("/admin/orders", status_code=303)
+
+
+# --- Coupons -----------------------------------------------------------------
+
+_COUPON_CODE_RE = re.compile(r"[A-Z0-9][A-Z0-9-]{1,63}")
+
+
+def _parse_expiry(raw: str) -> tuple[datetime | None, bool]:
+    """Parse an optional ``YYYY-MM-DD`` expiry into a naive end-of-day UTC datetime.
+
+    Returns ``(value, ok)``: blank → ``(None, True)``; invalid → ``(None, False)``.
+    """
+    raw = raw.strip()
+    if not raw:
+        return None, True
+    try:
+        parsed = date.fromisoformat(raw)
+    except ValueError:
+        return None, False
+    return datetime.combine(parsed, time.max), True
+
+
+@router.get("/coupons", response_class=HTMLResponse)
+async def coupon_list(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    coupons = list(await db.scalars(select(Coupon).order_by(Coupon.created_at.desc())))
+    ctx = {"coupons": coupons, **await nav_context(db, admin)}
+    return templates.TemplateResponse(request, "admin/coupons.html", ctx)
+
+
+@router.get("/coupons/new", response_class=HTMLResponse)
+async def coupon_new(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    ctx = {"error": None, **await nav_context(db, admin)}
+    return templates.TemplateResponse(request, "admin/coupon_form.html", ctx)
+
+
+@router.post("/coupons")
+async def coupon_create(
+    request: Request,
+    code: str = Form(...),
+    kind: str = Form(...),
+    value: str = Form(...),
+    expires_at: str = Form(""),
+    max_uses: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    code = code.strip().upper()
+    expiry, expiry_ok = _parse_expiry(expires_at)
+    error = None
+
+    if not _COUPON_CODE_RE.fullmatch(code):
+        error = "Code must be 2–64 chars: letters, digits, and hyphens."
+    elif kind not in CouponKind.ALL:
+        error = "Choose a valid discount type."
+    elif not expiry_ok:
+        error = "Expiry must be a valid date (YYYY-MM-DD) or blank."
+
+    # Value: whole percent (1–100) for percentage codes, else a dollar amount → cents.
+    coupon_value = None
+    if error is None:
+        if kind == CouponKind.PERCENT:
+            raw = value.strip()
+            coupon_value = int(raw) if raw.isdigit() else None
+            if coupon_value is None or not 1 <= coupon_value <= 100:
+                error = "Percentage must be a whole number between 1 and 100."
+        else:
+            coupon_value = dollars_to_cents(value)
+            if not coupon_value:  # None or 0
+                error = "Fixed amount must be a positive dollar value."
+
+    cap = None
+    if error is None and max_uses.strip():
+        cap = int(max_uses) if max_uses.strip().isdigit() else None
+        if cap is None or cap < 1:
+            error = "Usage cap must be a positive whole number, or blank."
+
+    if error is None and await db.scalar(select(Coupon.id).where(Coupon.code == code)):
+        error = "A coupon with that code already exists."
+
+    if error is not None:
+        ctx = {"error": error, **await nav_context(db, admin)}
+        return templates.TemplateResponse(
+            request, "admin/coupon_form.html", ctx, status_code=400
+        )
+
+    db.add(
+        Coupon(
+            code=code,
+            kind=kind,
+            value=coupon_value,
+            expires_at=expiry,
+            max_uses=cap,
+            is_active=True,
+        )
+    )
+    await db.commit()
+    return RedirectResponse("/admin/coupons", status_code=303)
+
+
+@router.post("/coupons/{coupon_id}/toggle")
+async def coupon_toggle(
+    coupon_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Activate/deactivate a coupon (deactivated codes are refused at checkout)."""
+    coupon = await db.get(Coupon, coupon_id)
+    if coupon is not None:
+        coupon.is_active = not coupon.is_active
+        await db.commit()
+    return RedirectResponse("/admin/coupons", status_code=303)
