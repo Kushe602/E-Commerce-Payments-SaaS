@@ -3,51 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d18">
+  <meta name="color-scheme" content="dark">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <meta name="description" content="{{ app_name }} — a demo e-commerce store with a pluggable payments layer.">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <style>
+    :root{color-scheme:dark;--page:#090d18;--surface:#131b2d;--line:rgba(148,163,184,.18);--text:#e8eef9;--muted:#9ba9bf;--accent:#8b7cff}
+    *{box-sizing:border-box}html{background:var(--page);scroll-behavior:smooth}
+    body{background:radial-gradient(ellipse at 12% 0%,rgba(91,76,220,.16),transparent 34rem),radial-gradient(ellipse at 92% 8%,rgba(14,165,233,.07),transparent 30rem),var(--page);color:var(--text)}
+    body .bg-white,body .bg-slate-50,body .bg-slate-100{background-color:var(--surface)!important;color:var(--text)}
+    body .text-slate-900,body .text-slate-800,body .text-slate-700{color:var(--text)!important}
+    body .text-slate-600,body .text-slate-500,body .text-slate-400{color:var(--muted)!important}
+    body [class*="border-slate-"]{border-color:var(--line)!important}
+    body .bg-indigo-600{background-color:var(--accent)!important}body .hover\\:bg-indigo-700:hover{background-color:#7667ed!important}
+    body .text-indigo-600{color:#c4bbff!important}body .hover\\:text-indigo-600:hover{color:#c4bbff!important}
+    body .bg-slate-900{background-color:#0e1627!important}body .bg-slate-100{background-color:#1a263a!important}
+    body .bg-gradient-to-r{background-image:linear-gradient(110deg,#25205a,#172d4a)!important}
+    body input,body textarea,body select{background-color:#0e1627;color:var(--text);border-color:var(--line)}
+    body input::placeholder,body textarea::placeholder{color:#77869e}
+    a,button,input,textarea,select{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease}
+    a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #a69aff;outline-offset:3px}
+    ::selection{background:rgba(139,124,255,.35)}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}}
+  </style>
 </head>
-<body class="min-h-full bg-slate-50 text-slate-900 flex flex-col antialiased">
-  <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-20">
-    <nav class="max-w-6xl mx-auto flex items-center gap-4 px-4 py-3">
-      <a href="/" class="text-xl font-bold text-indigo-600 tracking-tight">🛒 {{ app_name }}</a>
-
-      <form action="/" method="get" class="hidden md:flex flex-1 max-w-md">
-        <input type="search" name="q" value="{{ q|default('') }}" placeholder="Search products…"
-               class="w-full rounded-l-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-        <button class="rounded-r-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700">Search</button>
+<body class="min-h-full flex flex-col antialiased">
+  <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+    <nav class="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:gap-4">
+      <a href="/" class="shrink-0 text-xl font-bold tracking-tight text-indigo-600">🛒 {{ app_name }}</a>
+      <form action="/" method="get" class="hidden max-w-md flex-1 md:flex">
+        <input type="search" name="q" value="{{ q|default('') }}" placeholder="Search products…" aria-label="Search products" class="w-full rounded-l-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button class="rounded-r-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Search</button>
       </form>
-
       <div class="flex-1 md:hidden"></div>
-
-      <div class="flex items-center gap-3 text-sm">
-        <span class="hidden sm:inline rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500"
-              title="Payment provider in use">{{ 'Stripe test' if payments_mode == 'stripe' else 'Fake payments' }}</span>
+      <div class="flex items-center gap-2 text-sm sm:gap-3">
+        <span class="hidden rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 sm:inline" title="Payment provider in use">{{ 'Stripe test' if payments_mode == 'stripe' else 'Fake payments' }}</span>
         {% if user %}
           {% include 'partials/cart_badge.html' %}
           <a href="/wishlist" class="text-slate-600 hover:text-indigo-600">Wishlist</a>
-          <a href="/orders" class="text-slate-600 hover:text-indigo-600">Orders</a>
-          {% if user.is_admin %}<a href="/admin" class="text-slate-600 hover:text-indigo-600">Admin</a>{% endif %}
-          <form action="/logout" method="post" class="inline">
-            <button class="text-slate-600 hover:text-indigo-600">Log out</button>
-          </form>
+          <a href="/orders" class="hidden text-slate-600 hover:text-indigo-600 sm:inline">Orders</a>
+          {% if user.is_admin %}<a href="/admin" class="hidden text-slate-600 hover:text-indigo-600 sm:inline">Admin</a>{% endif %}
+          <form action="/logout" method="post" class="inline"><button class="text-slate-600 hover:text-indigo-600">Log out</button></form>
         {% else %}
           {% include 'partials/cart_badge.html' %}
           <a href="/login" class="text-slate-600 hover:text-indigo-600">Log in</a>
-          <a href="/register" class="rounded-lg bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700">Sign up</a>
+          <a href="/register" class="rounded-xl bg-indigo-600 px-3 py-2 font-semibold text-white hover:bg-indigo-700">Sign up</a>
         {% endif %}
       </div>
     </nav>
   </header>
-
-  <main class="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-    {{ app_name }} · a portfolio demo · payments run in
-    <strong>{{ 'Stripe test mode' if payments_mode == 'stripe' else 'fake mode (no keys)' }}</strong>
+  <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{% block content %}{% endblock %}</main>
+  <footer class="border-t border-slate-800 px-4 py-6 text-center text-xs leading-5 text-slate-500">
+    {{ app_name }} · portfolio storefront · payments run in <strong>{{ 'Stripe test mode' if payments_mode == 'stripe' else 'fake mode (no keys)' }}</strong>.
+    Use test data only; never enter real payment details in a demo.
   </footer>
 </body>
 </html>

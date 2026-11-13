@@ -101,6 +101,10 @@ stock), and takes `SELECT ... FOR UPDATE` row locks on Postgres to serialise
 concurrent fulfilments. A pending order holds **no** inventory, so abandoned
 checkouts never strand stock.
 
+## Interface guide
+
+The interface refresh is documented here: [UI guide](docs/UI_GUIDE.md). The guide includes the screen overview and a local verification checklist.
+
 ## Quickstart (fake mode, no keys)
 
 ```bash
